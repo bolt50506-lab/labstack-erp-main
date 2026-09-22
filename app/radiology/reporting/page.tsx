@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import type { LabOrderItem, LabOrder, Patient, Service, Doctor } from '@/lib/types';
 import { getFriendlyErrorMessage } from '@/lib/utils/errors';
 
-type ItemWithRelations = LabOrderItem & { order?: LabOrder & { patient?: Patient }; patient?: Patient; service?: Service };
+type ItemWithRelations = LabOrderItem & { order?: LabOrder & { patient?: Patient }; patient?: Patient; service?: Service; radiology_report?: any[] };
 
 const REPORT_TEMPLATES: { matches: string[]; findings: string; impression: string }[] = [
   { matches: ['chest', 'x-ray', 'xray'], findings: '<b>Findings:</b><br>Lung fields are clear. Cardiac silhouette is normal in size and contour. Costophrenic angles are sharp. Bony thorax is unremarkable.<br><br><b>Technique:</b> PA view chest radiograph.', impression: 'Normal chest radiograph. No acute cardiopulmonary abnormality detected.' },
@@ -42,7 +42,7 @@ export default function RadiologyReportingPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [itemsRes, docsRes] = await Promise.all([
-      supabase.from('lab_order_items').select('*, order:lab_orders(*, patient:patients(*)), service:services(*)').in('status', ['pending', 'sample_collected', 'processing', 'result_entered']).order('created_at', { ascending: false }),
+      supabase.from('lab_order_items').select('*, order:lab_orders(*, patient:patients(*)), service:services(*), radiology_report:radiology_reports(*)').in('status', ['pending', 'sample_collected', 'processing', 'result_entered']).order('created_at', { ascending: false }),
       supabase.from('doctors').select('*').eq('is_active', true).order('full_name'),
     ]);
     if (itemsRes.error) toast.error(getFriendlyErrorMessage(itemsRes.error));
@@ -57,9 +57,9 @@ export default function RadiologyReportingPage() {
 
   const loadEditor = useCallback((item: ItemWithRelations | null) => {
     if (!item) return;
-    const result = item.results?.[0];
-    setFindings(result?.result_value ?? '');
-    setImpression(result?.remarks ?? '');
+    const result = item.radiology_report?.[0];
+    setFindings(result?.findings ?? '');
+    setImpression(result?.impression ?? '');
     setComment('');
     setSelectedDoctorId(item.verified_by_doctor_id ?? '');
     setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = result?.result_value ?? ''; }, 0);
@@ -92,19 +92,21 @@ export default function RadiologyReportingPage() {
   const saveReport = async (approve: boolean) => {
     if (!selected || !findings.trim()) { toast.error('Enter findings before saving'); return; }
     approve ? setApproving(true) : setSaving(true);
-    const existing = selected.results?.[0];
-    const resultPayload = { result_value: findings, remarks: impression, flag: 'normal' };
-    let resultError = null;
-    if (existing) {
-      const response = await supabase.from('lab_results').update(resultPayload).eq('id', existing.id);
-      resultError = response.error;
-    } else {
-      const response = await supabase.from('lab_results').insert({ lab_order_item_id: selected.id, service_id: selected.service_id, ...resultPayload });
-      resultError = response.error;
-    }
-    if (resultError) { toast.error(getFriendlyErrorMessage(resultError)); setSaving(false); setApproving(false); return; }
+    const now = new Date().toISOString();
+    const reportPayload = {
+      company_id: appUser?.company_id,
+      lab_order_item_id: selected.id,
+      findings,
+      impression,
+      reporting_doctor_id: selectedDoctorId || null,
+      report_status: approve ? 'approved' : 'result_entered',
+      signed_at: approve ? now : null,
+      updated_at: now,
+    };
+    const { error: reportError } = await supabase.from('radiology_reports').upsert(reportPayload, { onConflict: 'lab_order_item_id' });
+    if (reportError) { toast.error(getFriendlyErrorMessage(reportError)); setSaving(false); setApproving(false); return; }
     const update = approve
-      ? { status: 'approved', result_entered_at: new Date().toISOString(), result_entered_by: appUser?.id ?? null, verified_at: new Date().toISOString(), verified_by: appUser?.id ?? null, verified_by_doctor_id: selectedDoctorId || null }
+      ? { status: 'approved', result_entered_at: now, result_entered_by: appUser?.id ?? null, verified_at: now, verified_by: appUser?.id ?? null, verified_by_doctor_id: selectedDoctorId || null }
       : { status: 'result_entered', result_entered_at: new Date().toISOString(), result_entered_by: appUser?.id ?? null, verified_by_doctor_id: selectedDoctorId || null };
     const { error } = await supabase.from('lab_order_items').update(update).eq('id', selected.id);
     if (error) toast.error(getFriendlyErrorMessage(error));
