@@ -18,6 +18,7 @@ type ItemWithRelations = LabOrderItem & {
   order?: LabOrder & { patient?: Patient; doctor?: Doctor | null };
   service?: Service;
   results?: LabResult[];
+  radiology_report?: any[];
 };
 
 const STATUS_FLOW = ['pending', 'sample_collected', 'processing', 'result_entered', 'verified', 'approved', 'printed'] as const;
@@ -53,7 +54,7 @@ export default function RadiologyReportsPage() {
     const [itemsRes, docsRes] = await Promise.all([
       supabase
         .from('lab_order_items')
-        .select('*, order:lab_orders(*, patient:patients(*), doctor:doctors(*)), service:services(*), results:lab_results(*)')
+        .select('*, order:lab_orders(*, patient:patients(*), doctor:doctors(*)), service:services(*), radiology_report:radiology_reports(*)')
         .order('created_at', { ascending: false }),
       supabase.from('doctors').select('*').eq('is_active', true).order('full_name'),
     ]);
@@ -108,9 +109,11 @@ export default function RadiologyReportsPage() {
       const { data: doc } = await supabase.from('doctors').select('full_name').eq('id', item.verified_by_doctor_id).maybeSingle();
       if (doc) verifyingDoctorName = (doc as any).full_name;
     }
-    const result = item.results?.[0];
+    const result = item.radiology_report?.[0];
     const patient = item.order.patient;
     const order = item.order;
+
+    const signatureUrl = item.verified_by_doctor_id ? (await supabase.from('doctors').select('signature_url').eq('id', item.verified_by_doctor_id).maybeSingle()).data?.signature_url : null;
 
     const bodyHtml = `
       <div class="report-header">
@@ -139,12 +142,12 @@ export default function RadiologyReportsPage() {
         <div class="section-box">
           <h4>Findings</h4>
           <div class="findings-content" style="margin-top:8px;">
-            ${result?.result_value ? sanitizeReportHtml(result.result_value) : '<p class="text-muted">No findings recorded.</p>'}
+            ${result?.findings ? sanitizeReportHtml(result.result_value) : '<p class="text-muted">No findings recorded.</p>'}
           </div>
         </div>
         <div class="section-box">
           <h4>Impression</h4>
-          <p style="margin-top:8px;white-space:pre-wrap;">${result?.remarks ?? 'No impression recorded.'}</p>
+          <p style="margin-top:8px;white-space:pre-wrap;">${result?.impression ?? 'No impression recorded.'}</p>
         </div>
       </div>
 
@@ -154,7 +157,7 @@ export default function RadiologyReportsPage() {
           <p class="text-muted" style="font-size:10px;margin-top:2px;">Computer-generated report — no physical signature required.</p>
         </div>
         <div style="text-align:right;">
-          <div class="sign-line"></div>
+          ${signatureUrl ? `<img src="${signatureUrl}" style="max-width:180px;max-height:55px;object-fit:contain;margin-left:auto;margin-bottom:4px;" />` : `<div class="sign-line"></div>`}
           <p class="font-semibold">${verifyingDoctorName}</p>
           <p class="text-muted" style="font-size:10px;">Radiologist</p>
         </div>
