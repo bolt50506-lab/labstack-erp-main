@@ -24,6 +24,7 @@ const emptyDoctor: Omit<Doctor, 'id' | 'company_id' | 'created_at' | 'updated_at
   department_id: null,
   doctor_code: '',
   photo_url: null,
+  signature_url: null,
   full_name: '',
   specialization: '',
   qualification: '',
@@ -247,6 +248,11 @@ export default function DoctorsPage() {
               <Label>Qualification</Label>
               <Input value={form.qualification ?? ''} onChange={(e) => setForm({ ...form, qualification: e.target.value })} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Doctor Signature URL</Label>
+            <Input value={form.signature_url ?? ''} onChange={(e) => setForm({ ...form, signature_url: e.target.value || null })} placeholder="https://.../doctor-signature.png" />
+            <p className="text-xs text-muted-foreground">Optional transparent PNG/JPG used below the doctor name on signed radiology reports.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
