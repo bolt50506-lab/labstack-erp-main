@@ -49,7 +49,7 @@ export default function LabReportsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from('lab_orders')
-      .select('*, patient:patients(*), doctor:doctors(*), lab_order_items:lab_order_items(*, results:lab_results(*), service:services(*))')
+      .select('*, patient:patients(*), doctor:doctors(*), lab_order_items:lab_order_items(*, results:lab_results(*, parameters:lab_result_parameters(*)), service:services(*))')
       .order('created_at', { ascending: false });
     if (error) {
       toast.error('Failed to load: ' + getFriendlyErrorMessage(error));
@@ -92,18 +92,33 @@ export default function LabReportsPage() {
       if (doc) verifyingDoctorName = (doc as any).full_name;
     }
 
-    const rowsHtml = approvedItems.map((item) => {
-      const result = item.results?.[0];
+    const rowsHtml = approvedItems.flatMap((item) => {
+      const result = item.results?.[0] as any;
+      const params = (result?.parameters ?? []) as any[];
+      if (params.length > 0) {
+        return params.map((p) => {
+          const flagBadge = p.flag && p.flag !== 'normal'
+            ? `<span class="badge" style="background:#fee2e2;color:#dc2626;">${p.flag}</span>`
+            : '<span class="badge">Normal</span>';
+          return `<tr>
+            <td style="font-weight:600;">${item.service_name}<br/><span style="font-weight:400;color:#64748b;font-size:10px;">${p.parameter_name}</span></td>
+            <td>${p.result_value ?? '-'}</td>
+            <td style="color:#64748b;">${p.unit ?? '-'}</td>
+            <td style="color:#64748b;">${p.normal_range ?? '-'}</td>
+            <td>${flagBadge}</td>
+          </tr>`;
+        });
+      }
       const flagBadge = result?.flag && result.flag !== 'normal'
         ? `<span class="badge" style="background:#fee2e2;color:#dc2626;">${result.flag}</span>`
         : '<span class="badge">Normal</span>';
-      return `<tr>
+      return [`<tr>
         <td style="font-weight:600;">${item.service_name}</td>
         <td>${result?.result_value ?? '-'}</td>
         <td style="color:#64748b;">${result?.unit ?? '-'}</td>
         <td style="color:#64748b;">${result?.normal_range ?? '-'}</td>
         <td>${flagBadge}</td>
-      </tr>`;
+      </tr>`];
     }).join('');
 
     const bodyHtml = `
