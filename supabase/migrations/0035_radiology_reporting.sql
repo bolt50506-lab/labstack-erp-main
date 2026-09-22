@@ -17,6 +17,10 @@ create table if not exists public.radiology_report_templates (
 );
 
 alter table public.radiology_report_templates enable row level security;
+drop policy if exists select_radiology_report_templates on public.radiology_report_templates;
+drop policy if exists insert_radiology_report_templates on public.radiology_report_templates;
+drop policy if exists update_radiology_report_templates on public.radiology_report_templates;
+drop policy if exists delete_radiology_report_templates on public.radiology_report_templates;
 create policy select_radiology_report_templates on public.radiology_report_templates for select to authenticated using (is_company_member(company_id));
 create policy insert_radiology_report_templates on public.radiology_report_templates for insert to authenticated with check (is_company_member(company_id));
 create policy update_radiology_report_templates on public.radiology_report_templates for update to authenticated using (is_company_member(company_id)) with check (is_company_member(company_id));
@@ -39,6 +43,10 @@ create table if not exists public.radiology_reports (
 );
 
 alter table public.radiology_reports enable row level security;
+drop policy if exists select_radiology_reports on public.radiology_reports;
+drop policy if exists insert_radiology_reports on public.radiology_reports;
+drop policy if exists update_radiology_reports on public.radiology_reports;
+drop policy if exists delete_radiology_reports on public.radiology_reports;
 create policy select_radiology_reports on public.radiology_reports for select to authenticated using (is_company_member(company_id));
 create policy insert_radiology_reports on public.radiology_reports for insert to authenticated with check (is_company_member(company_id));
 create policy update_radiology_reports on public.radiology_reports for update to authenticated using (is_company_member(company_id)) with check (is_company_member(company_id));
