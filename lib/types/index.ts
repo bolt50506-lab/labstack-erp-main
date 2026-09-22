@@ -296,6 +296,7 @@ export type Doctor = {
   department_id: string | null;
   doctor_code: string;
   photo_url: string | null;
+  signature_url: string | null;
   full_name: string;
   specialization: string | null;
   qualification: string | null;
@@ -398,7 +399,7 @@ export type Service = {
   machine: string | null;
   normal_range: string | null;
   critical_value: string | null;
-  report_format: 'routine' | 'culture' | 'biopsy';
+  report_format: 'routine' | 'culture' | 'biopsy' | 'radiology';
   analyzer_code: string | null;
   turnaround_time_hours: number;
   barcode_required: boolean;
@@ -602,6 +603,22 @@ export type TestParameter = {
   display_order: number;
   is_active: boolean;
   analyzer_code: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RadiologyReport = {
+  id: string;
+  company_id: string;
+  lab_order_item_id: string;
+  template_id: string | null;
+  clinical_history: string | null;
+  technique: string | null;
+  findings: string;
+  impression: string;
+  report_status: 'draft' | 'result_entered' | 'verified' | 'approved' | 'printed';
+  reporting_doctor_id: string | null;
+  signed_at: string | null;
   created_at: string;
   updated_at: string;
 };
