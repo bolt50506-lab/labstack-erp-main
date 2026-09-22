@@ -26,7 +26,7 @@ export default function RadiologyApprovalPage() {
     setLoading(true);
     const [iRes, dRes] = await Promise.all([
       supabase.from('lab_order_items')
-        .select('*, order:lab_orders(*, patient:patients(*)), results:lab_results(*), service:services(category)')
+        .select('*, order:lab_orders(*, patient:patients(*)), radiology_report:radiology_reports(*), service:services(category)')
         .in('status', ['result_entered', 'verified'])
         .order('created_at', { ascending: false }),
       supabase.from('doctors').select('*').eq('is_active', true).order('full_name'),
@@ -43,13 +43,20 @@ export default function RadiologyApprovalPage() {
     const doctorId = approveDoctorId[item.id];
     if (!doctorId) { toast.error('Select an approving doctor'); return; }
     setApproving(item.id);
+    const now = new Date().toISOString();
     const { error } = await supabase.from('lab_order_items').update({
       status: 'approved',
-      approved_at: new Date().toISOString(),
+      approved_at: now,
       verified_by_doctor_id: doctorId,
     }).eq('id', item.id);
     if (error) toast.error('Failed: ' + getFriendlyErrorMessage(error));
-    else { toast.success('Report approved'); loadData(); }
+    else {
+      const { error: reportError } = await supabase.from('radiology_reports')
+        .update({ report_status: 'approved', reporting_doctor_id: doctorId, signed_at: now, updated_at: now })
+        .eq('lab_order_item_id', item.id);
+      if (reportError) toast.error('Report approved but radiology report status failed: ' + getFriendlyErrorMessage(reportError));
+      else { toast.success('Report approved'); loadData(); }
+    }
     setApproving(null);
   };
 
