@@ -412,7 +412,7 @@ export default function ServicesPage() {
               <Input value={form.method ?? ''} onChange={(e) => setForm({ ...form, method: e.target.value })} />
             </div>
           </div>
-          {form.category === 'lab' && (
+          {(form.category === 'lab' || form.category === 'radiology') && (
             <div className="space-y-2">
               <Label>Report Format</Label>
               <Select value={form.report_format ?? 'routine'} onValueChange={(v) => setForm({ ...form, report_format: v as Service['report_format'] })}>
@@ -421,9 +421,10 @@ export default function ServicesPage() {
                   <SelectItem value="routine">Routine (numeric parameters)</SelectItem>
                   <SelectItem value="culture">Culture &amp; Sensitivity</SelectItem>
                   <SelectItem value="biopsy">Biopsy / Histopathology</SelectItem>
+                  {form.category === 'radiology' && <SelectItem value="radiology">Radiology (Word-style)</SelectItem>}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Controls which entry layout appears in Pathology Reports. Determines the report format directly instead of guessing from the test name.</p>
+              <p className="text-xs text-muted-foreground">Controls the report editor used for this service. Determines the report format directly instead of guessing from the test name.</p>
             </div>
           )}
           {form.category === 'lab' && (
